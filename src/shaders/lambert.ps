@@ -1,0 +1,15 @@
+precision mediump float;
+
+uniform mat4 uView;
+varying vec3 vWorldNormal;
+varying vec3 camWorldDir;
+varying vec4 vScreen;
+
+void main() {
+    vec3 lightDir =  vec3(uView[0][2], uView[1][2], uView[2][2]);
+    float diffuse =  clamp(dot(normalize(vWorldNormal), lightDir),0.0,1.0) + 0.4;
+    vec3 col = vec3(0.6);
+             
+    gl_FragColor = vec4(diffuse * col, 1.0);
+}
+
