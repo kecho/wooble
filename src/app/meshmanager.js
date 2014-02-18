@@ -50,7 +50,9 @@ MeshManager.prototype = {
                 mesh.Draw(gl, program, Mesh.DRAW_SOLID);
 
             }
-            this.mGrid.Render(gl, camera);
+            
+            if (programId != MeshPrograms.SELECTION)
+                this.mGrid.Render(gl, camera);
             
         }
     },

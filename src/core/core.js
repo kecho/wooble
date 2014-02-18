@@ -21,5 +21,10 @@ Core = {
         xmlhttp._extraArgs = extraArgs;
         xmlhttp.open("GET", doc, true);
         xmlhttp.send();
+    },
+
+    IsUndefined : function (variable)
+    {
+        return typeof(variable) == "undefined";
     }
 }

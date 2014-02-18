@@ -97,7 +97,14 @@ function Viewport(viewportDiv)
     this.mViewportMouseCmd = new ViewportMouseCmd(this.mDims);
     this.InitMouseEventListeners();
     this.mSurfaces = {
-        selection : new Surface(this.mDims.width, this.mDims.height)
+        selection : new Surface(
+            this.mDims.width, this.mDims.height,
+            {
+                internalFormat: "RED",
+                format: "R16UI",
+                type: "UNSIGNED_SHORT"
+            }
+        )
     };
     this.mViewportDiv.appendChild(this.mCanvas);
     this.mCamera = new Camera( this.mDims.height / this.mDims.width);
@@ -203,6 +210,8 @@ Viewport.prototype = {
             this.mSurfaces.selection.Use(gl);
             this.mMeshManager.Render(gl, this.mCamera, MeshPrograms.SELECTION);
             this.mSurfaces.selection.Unuse(gl);
+            this.mScreenPass.SetTexture( gl, 0, this.mSurfaces.selection.GetTextureView())
+            gl.clear(gl.COLOR_BUFFER_BIT, gl.DEPTH_BUFFER_BIT);
             this.mScreenPass.RenderQuad(gl);
         }
     },

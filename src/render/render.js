@@ -54,7 +54,7 @@ Render =  {
 
     CreateSimpleVertexAttribute : function (gl, attribName, program, vertices, advanced)
     {
-        if (typeof(advanced) == "undefined")
+        if (Core.IsUndefined(advanced))
         {
             advanced = {
                 usage : gl.STATIC_DRAW
@@ -72,7 +72,7 @@ Render =  {
 
     UseSimpleAttribute : function(gl, attr, elements, elementType, advanced)
     {
-        if (typeof(advanced) == "undefined")
+        if (Core.IsUndefined(advanced))
         {
             advanced = {
                 stride : 0,
@@ -90,17 +90,34 @@ Render =  {
         gl.useProgram(program.GetHandle());
     },
 
-    CreateTextureFromImage : function (gl, useMip, dim, htmlImage)
+    CreateTextureFromImage : function (gl, useMip, dim, htmlImage, advanced)
     {
+        var internalAdvanced = null;
+        if (Core.IsUndefined(advanced) || advanced == null)
+        {
+            internalAdvanced = {
+                internalFormat : gl.RGBA,
+                format : gl.RGBA,
+                type : gl.UNSIGNED_BYTE
+            };
+        }
+        else
+        {
+            internalAdvanced = {
+                internalFormat : gl[advanced.internalFormat],
+                format : gl[advanced.format],
+                type : gl[advanced.type]
+            };
+        }
         var texHandle = gl.createTexture();
         gl.bindTexture(gl.TEXTURE_2D, texHandle);
         if (htmlImage != null)
         {
-            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, htmlImage);
+            gl.texImage2D(gl.TEXTURE_2D, 0, internalAdvanced.internalFormat, internalAdvanced.format, internalAdvanced.type, htmlImage);
         }
         else
         {
-            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, dim.width, dim.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+            gl.texImage2D(gl.TEXTURE_2D, 0, internalAdvanced.internalFormat, dim.width, dim.height, 0, internalAdvanced.format, internalAdvanced.type, null);
         }
         if (useMip)
         {

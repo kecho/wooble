@@ -5,6 +5,7 @@ function Texture()
     this.mDims = null;
     this.mTexureHandle = null;
     this.mCreateFormat = null;
+    this.mAdvanced = null;
 }
 
 Texture.STATE_INIT = 0;
@@ -15,10 +16,11 @@ Texture.STATE_CREATE_REQUEST = 4;
 
 Texture.prototype = {
 
-    Create : function (dims)
+    Create : function (dims, advanced)
     {
         this.mDims = dims;
         this.mState = Texture.STATE_CREATE_REQUEST;
+        this.mAdvanced = advanced;
     },
 
     Load : function (src)
@@ -41,6 +43,8 @@ Texture.prototype = {
         }
     },
 
+    GetGlHandle : function () { return this.mTextureHandle; },
+
     CreateEmptyTexture : function (gl, dim)
     {
         this.mTextureHandle = Render.CreateTextureFromImage(gl, false, dim, null);
@@ -62,7 +66,7 @@ Texture.prototype = {
             }
         case Texture.STATE_CREATE_REQUEST:
             {
-                this.CreateEmptyTexture(gl, this.mDims);
+                this.CreateEmptyTexture(gl, this.mDims, this.mAdvanced);
                 this.mState = Texture.STATE_READY;
                 break;
             }
@@ -70,12 +74,12 @@ Texture.prototype = {
     }
 }
 
-function Surface(width, height)
+function Surface(width, height, advanced)
 {
     this.mDim = {width: width, height: height};
     this.mFrameBufferHandle = null;
     this.mTextureView = new Texture();
-    this.mTextureView.Create(this.mDim);
+    this.mTextureView.Create(this.mDim, advanced);
     this.mState = Surface.STATE_INIT;
 }
 
