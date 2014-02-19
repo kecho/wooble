@@ -1,5 +1,7 @@
 precision mediump float; 
 
+uniform int meshId;
+
 int imod(int a, int b)
 {
     return a - (a / b)*b;
@@ -11,7 +13,7 @@ int imax(int a, int b)
 }
 
 void main() {
-    int k = imax(400000156, 0);
+    int k = imax(meshId, 0);
     int r = imod(k, 256);
     int g = imod((k / 256), 256);
     int b = imod((k / 65536), 256);

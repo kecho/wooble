@@ -15,6 +15,7 @@ function Program(name)
     this.mProgramHandle = null;
     this.mState = Program.STATE_NONE;
     this.mAttributeLocations = {};
+    this.mUniforms = {};
 }
 
 Program.STATE_NONE = 0;
@@ -41,6 +42,45 @@ Program.CreateShaderList = function (nameList)
 Program.mGlobalShaderMap = {}
 
 Program.prototype = {
+
+    FindAndCacheUniform : function (gl, str)
+    {
+        var u = this.mUniforms[str];
+        if (u == null || Core.IsUndefined(this.mUniforms[str]))
+        {
+            u = gl.getUniformLocation(this.GetHandle(), str);
+            this.mUniforms[str] = u;
+        }
+        return u;
+        
+    },
+
+    SetFloat4 : function (gl, str, value)
+    {
+        var u = this.FindAndCacheUniform(gl,str);
+        gl.uniform4fv(u, value);
+    },
+
+    SetFloat3 : function (gl, str, value)
+    {
+        var u = this.FindAndCacheUniform(gl,str);
+        gl.uniform3fv(u, value);
+    },
+    
+    SetInt : function (gl, str, value)
+    {
+        var u = this.FindAndCacheUniform(gl,str);
+        gl.uniform1i(u, value);
+    },
+
+    SetTexture : function(gl, uniformName, texId, texture)
+    {
+        var u = this.FindAndCacheUniform(gl, uniformName);
+        var glId = gl.TEXTURE0 + texId; 
+        gl.activeTexture(glId); 
+        gl.bindTexture(gl.TEXTURE_2D, texture.GetGlHandle());
+        gl.uniform1i(u, texId);
+    },
 
     RegisterVertexAttribute : function (id, loc)
     {

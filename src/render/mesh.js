@@ -39,8 +39,9 @@ Mesh.RegisterVertexLayout = function (gl, program)
     }
 }
 
-
 Mesh.prototype = {
+
+    StateReady : function () {return this.mState == Mesh.STATE_READY;},
 
     UpdateState : function(gl)
     {
@@ -179,6 +180,8 @@ Mesh.prototype = {
             gl.drawElements(gl.LINES, this.mWireframeIndexBuffer.length, gl.UNSIGNED_SHORT, 0);
             break;
         case (Mesh.DRAW_VERTEX):
+            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.mWireframeIndexBuffer);
+            gl.drawElements(gl.POINTS, this.mWireframeIndexBuffer.length, gl.UNSIGNED_SHORT, 0);
             break;
         }
     }

@@ -1,12 +1,16 @@
 function MeshManager ()
 {
-    this.mNextMeshGuid = 0;
+    this.mNextMeshGuid = 1; //guid 0 reserved for none
     this.mState = MeshManager.STATE_NONE;
     this.mMeshSet = {};
     this.mGrid = new XYZGrid();
-    /*this.mTestTex = new Texture();
-    this.mTestTex.Load("img/UV.jpg");*/
     this.mMeshPrograms = new MeshPrograms();
+    this.mSelectionState = 
+    {
+        meshId : 0,
+        vertexIndex : 0,
+        isVertex : false
+    };
 
     this.PushMesh(PrimitiveFactory.CreateCube(1.0));
 }
@@ -30,27 +34,81 @@ MeshManager.prototype = {
         delete this.mMeshSet[id];
     },
 
+    SetSelectionFromPixel : function (p)
+    {
+        var id = p[0] + 256 * p[1] + 65536 * p[2] + 16777216 * p[3];
+        this.HighlightMesh(id);
+    },
+
+    HighlightMesh : function (id)
+    {
+        this.mSelectionState.meshId = id;
+    },
+
+    SetUniforms : function (gl, program,  programId)
+    {
+        switch (programId)
+        {
+        case MeshPrograms.SELECTION_HIGHLIGHTS:
+            program.SetFloat4(gl, "color", [0.0,1.0,0.0,1.0]);
+            gl.lineWidth(10.0);
+            break;
+        case MeshPrograms.DEFAULT_LAMBERT:
+            break;
+        }
+    },
+
+    SetUniformsPerMesh : function (gl, program,  programId, mesh)
+    {
+        switch (programId)
+        {
+        case MeshPrograms.SELECTION:
+            program.SetInt(gl, "meshId", mesh.__guid);
+            break;
+        }
+    },
+    
+    GetDrawType : function ( programId)
+    {
+        switch (programId)
+        {
+        case MeshPrograms.SELECTION_HIGHLIGHTS:
+            return Mesh.DRAW_LINES;
+            break;
+        case MeshPrograms.DEFAULT_LAMBERT:
+            return Mesh.DRAW_SOLID;
+            break;
+        }
+        return Mesh.DRAW_SOLID;
+    },
+
     Render : function(gl, camera, programId)
     {
         if (this.StateReady())
         {
-            gl.clearColor(0.6,0.6,0.6,1.0);
-            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-            gl.enable(gl.DEPTH_TEST);
             var program = this.mMeshPrograms.Get(programId);
             Render.UseProgram(gl, program);
             camera.Dispatch(gl,program);
-            /*gl.activeTexture(gl.TEXTURE0);
-            gl.bindTexture(gl.TEXTURE_2D, this.mTestTex.mTextureHandle);
-            gl.uniform1i(gl.getUniformLocation(program.mProgramHandle, "uSampler"),0);*/
+
+            this.SetUniforms(gl, program, programId);
+            var drawType = this.GetDrawType(programId);
 
             for (var guid in this.mMeshSet)
             {
-                var mesh = this.mMeshSet[guid];
-                mesh.Draw(gl, program, Mesh.DRAW_SOLID);
-
+                if (
+                    (programId == MeshPrograms.SELECTION_HIGHLIGHTS && guid == this.mSelectionState.meshId) ||
+                     programId != MeshPrograms.SELECTION_HIGHLIGHTS
+                   )
+                {
+                    var mesh = this.mMeshSet[guid];
+                    this.SetUniformsPerMesh(gl, program, programId, mesh);
+                    mesh.Draw(gl, program, drawType);
+                    if (programId == MeshPrograms.SELECTION_HIGHLIGHTS)
+                    {
+                        mesh.Draw(gl, program, Mesh.DRAW_VERTEX);
+                    }
+                }
             }
-            
             if (programId != MeshPrograms.SELECTION)
                 this.mGrid.Render(gl, camera);
             
@@ -84,6 +142,11 @@ MeshManager.prototype = {
         case MeshManager.STATE_READY:
             break;
         }
+    },
+
+    GetProgram : function(id)
+    {
+        return this.mMeshPrograms.Get(id);
     }
 }
 
@@ -92,7 +155,8 @@ function MeshPrograms()
     this.mProgramsInfo = 
     [
         {name: "Default-Lambert", stages: ["stdvertex.vs", "lambert.ps"]},
-        {name: "Selection",       stages: ["stdvertex.vs", "selection.ps"]}    
+        {name: "Selection",       stages: ["stdvertex.vs", "selection.ps"]},    
+        {name: "SelectionHighlight",       stages: ["stdvertex.vs", "colorsolid.ps"]}    
     ];
 
     this.mPrograms = [];
@@ -107,6 +171,7 @@ function MeshPrograms()
 
 MeshPrograms.DEFAULT_LAMBERT = 0;
 MeshPrograms.SELECTION = 1;
+MeshPrograms.SELECTION_HIGHLIGHTS = 2;
 
 MeshPrograms.prototype = {
     UpdateState : function (gl)
@@ -134,6 +199,7 @@ MeshPrograms.prototype = {
             }
         }
     },
+
 
     UseProgram : function (gl, programId)
     {
