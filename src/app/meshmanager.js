@@ -12,7 +12,8 @@ function MeshManager ()
         isVertex : false
     };
 
-    this.PushMesh(PrimitiveFactory.CreateCube(1.0));
+    //this.PushMesh(PrimitiveFactory.CreateCube(1.0));
+    this.PushMesh(PrimitiveFactory.CreateQuadSphere(3.0));
 }
 
 MeshManager.STATE_NONE = 0;

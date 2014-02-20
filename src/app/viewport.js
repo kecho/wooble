@@ -135,6 +135,8 @@ Viewport.DebugPasses = {
     SELECTION : 0x1 
 }
 
+Viewport.DEACTIVATE = true;
+
 Viewport.prototype = {
 
     EnableDebugPasses : function (passesFlags)
@@ -200,12 +202,12 @@ Viewport.prototype = {
         if (this.mRenderSelectionPassRequest.doRender)
         {
             this.mSurfaces.selection.Use(gl);
-            gl.clearColor(0,0,0,0);
-            gl.clear(gl.COLOR_BUFFER_BIT);
-            this.mMeshManager.Render(gl, this.mCamera, MeshPrograms.SELECTION);
+            if (Viewport.DEACTIVATE) gl.clearColor(0,0,0,0);
+            if (Viewport.DEACTIVATE) gl.clear(gl.COLOR_BUFFER_BIT);
+            if (Viewport.DEACTIVATE) this.mMeshManager.Render(gl, this.mCamera, MeshPrograms.SELECTION);
             gl.readPixels(
                 this.mRenderSelectionPassRequest.selectionCoord.x,
-                this.mRenderSelectionPassRequest.selectionCoord.y,
+                this.mCanvas.height-this.mRenderSelectionPassRequest.selectionCoord.y,
                 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, this.mSelectionPixels
             );
             this.mSurfaces.selection.Unuse(gl);

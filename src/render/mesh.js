@@ -257,6 +257,74 @@ PrimitiveFactory = {
     },
 
 
+    CreateQuadSphere : function (divisions)
+    {
+        var sphere = new Mesh();
+        function GenerateRing(d, xzRotation, outlist)
+        {
+            var angle = Math.PI / d;
+            var vector = V3.$(0,0,0);
+            var rotVector = V3.$(0,0,0);
+            var xzSin = Math.sin(xzRotation);
+            var xzCos = Math.cos(xzRotation);
+            var xzRotVectorX = V3.$(xzCos, 0, xzSin);
+            var xzRotVectorY = V3.$(-xzSin, 0, xzCos);
+
+            for (var i = 0; i < 2*d; ++i) { 
+                //pos
+                vector[0]= Math.sin(angle * i);
+                vector[1] = Math.cos(angle * i);
+                vector[2] = 0;
+                rotVector[0] = V3.dot(vector, xzRotVectorX);
+                rotVector[1] = vector[1];
+                rotVector[2] = V3.dot(vector, xzRotVectorY);
+                outlist.push(rotVector[0], rotVector[1], rotVector[2]);
+                //normal
+                outlist.push(rotVector[0], rotVector[1], rotVector[2]);
+            }
+        };
+        var vertexList = [];
+        for (var i = 0; i < divisions; ++i) GenerateRing(divisions,Math.PI * (i / divisions), vertexList);
+        sphere.mVertexes = new Float32Array(
+            vertexList
+        );
+        var totalVertexes = (vertexList.length/6);
+
+        sphere.mFormat = [AttribType.POS, AttribType.NORMAL];
+
+        var ind = [];
+        // for (var i = 0; i < sphere.mVertexes.length / 6; ++i) ind.push(i);
+        //push the upper and lower caps
+        for (var i = 0; i < divisions; ++i)
+        {
+            var initialElement = i*divisions*2;
+            var nextElement = ((i+1)*divisions*2 + 1);
+            if (nextElement >= totalVertexes)
+            {
+                nextElement  = 2*divisions - 1; 
+            }
+            ind.push(initialElement); //always start with the first division element  
+            ind.push(initialElement + 1);
+            ind.push(nextElement);
+
+            //oposite side
+            ind.push(initialElement);
+            ind.push(initialElement - 1 < 0 ? 2*divisions - 1 : initialElement - 1);
+            nextElement = (i + 1)*2*divisions + 2*divisions - 1;
+            if (nextElement  >= totalVertexes)
+            {
+                nextElement = 1;
+            }
+            ind.push(nextElement);
+        }
+
+        sphere.mIndices = new Uint16Array(
+            ind
+        );
+
+        return sphere;
+    },
+
     CreateTorus : function (dim)
     {
         return null;
