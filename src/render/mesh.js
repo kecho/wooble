@@ -259,6 +259,7 @@ PrimitiveFactory = {
 
     CreateQuadSphere : function (divisions)
     {
+        divisions = Math.max(divisions, 2);//minimum 2 divisions
         var sphere = new Mesh();
         function GenerateRing(d, xzRotation, outlist)
         {
@@ -295,27 +296,43 @@ PrimitiveFactory = {
         var ind = [];
         // for (var i = 0; i < sphere.mVertexes.length / 6; ++i) ind.push(i);
         //push the upper and lower caps
+        var loopSize = divisions * 2;
+        function pushSphereQuad(ind, upperLeft, lowerLeft, upperRight, lowerRight)
+        {
+            ind.push(upperLeft);
+            ind.push(lowerLeft);
+            ind.push(upperRight);
+            ind.push(upperRight);
+            ind.push(lowerLeft);
+            ind.push(lowerRight);
+        }
         for (var i = 0; i < divisions; ++i)
         {
-            var initialElement = i*divisions*2;
-            var nextElement = ((i+1)*divisions*2 + 1);
-            if (nextElement >= totalVertexes)
+            var leftLoop = i * loopSize;
+            var rightLoop = (((i + 1) % divisions) * loopSize);
+            if (i + 1 < divisions)
             {
-                nextElement  = 2*divisions - 1; 
+                for (var j = 0; j < loopSize; ++j)
+                {
+                    var next = (j + 1) % loopSize;
+                    var upperLeft = leftLoop + j;
+                    var lowerLeft = leftLoop + next;
+                    var upperRight = rightLoop + j;
+                    var lowerRight = rightLoop + next;
+                    pushSphereQuad(ind, upperLeft, lowerLeft, upperRight, lowerRight);
+                }
             }
-            ind.push(initialElement); //always start with the first division element  
-            ind.push(initialElement + 1);
-            ind.push(nextElement);
-
-            //oposite side
-            ind.push(initialElement);
-            ind.push(initialElement - 1 < 0 ? 2*divisions - 1 : initialElement - 1);
-            nextElement = (i + 1)*2*divisions + 2*divisions - 1;
-            if (nextElement  >= totalVertexes)
+            else
             {
-                nextElement = 1;
+                for (var j = 0; j < loopSize; ++j)
+                {
+                    var upperLeft = leftLoop + j;
+                    var lowerLeft = leftLoop + ((j + 1) % loopSize);
+                    var upperRight = (loopSize - j) % loopSize;
+                    var lowerRight = loopSize - (j + 1);
+                    pushSphereQuad(ind, upperLeft, lowerLeft, upperRight, lowerRight);
+                }
             }
-            ind.push(nextElement);
         }
 
         sphere.mIndices = new Uint16Array(

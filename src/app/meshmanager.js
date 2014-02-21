@@ -13,7 +13,7 @@ function MeshManager ()
     };
 
     //this.PushMesh(PrimitiveFactory.CreateCube(1.0));
-    this.PushMesh(PrimitiveFactory.CreateQuadSphere(3.0));
+    this.PushMesh(PrimitiveFactory.CreateQuadSphere(12));
 }
 
 MeshManager.STATE_NONE = 0;
