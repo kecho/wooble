@@ -13,5 +13,5 @@ void main () {
     vWorldNormal = aNormal ;
     vScreen = projPos;
     gl_Position = projPos;
-    gl_PointSize = 9.0;
+    gl_PointSize = 6.0;
 }

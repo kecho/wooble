@@ -5,6 +5,7 @@ function MeshManager ()
     this.mMeshSet = {};
     this.mGrid = new XYZGrid();
     this.mMeshPrograms = new MeshPrograms();
+    this.mMode = MeshManager.MODE_MESH;
     this.mSelectionState = 
     {
         meshId : 0,
@@ -20,6 +21,9 @@ MeshManager.STATE_NONE = 0;
 MeshManager.STATE_LOADING_SHADERS = 1;
 MeshManager.STATE_ERROR = 2;
 MeshManager.STATE_READY = 3;
+
+MeshManager.MODE_MESH = 0;
+MeshManager.MODE_VERTEX = 1;
 
 MeshManager.prototype = {
 
@@ -44,6 +48,25 @@ MeshManager.prototype = {
     HighlightMesh : function (id)
     {
         this.mSelectionState.meshId = id;
+        if (id == 0)
+        {
+            this.OpenMeshMode();
+        }
+    },
+
+    HasSelectedMesh : function ()
+    {
+        return this.mSelectionState.meshId != 0;
+    },
+
+    OpenEditMode : function ()
+    {
+        this.mMode = MeshManager.MODE_VERTEX;
+    },
+
+    OpenMeshMode : function ()
+    {
+        this.mMode = MeshManager.MODE_MESH;
     },
 
     SetUniforms : function (gl, program,  programId)
@@ -69,7 +92,7 @@ MeshManager.prototype = {
         }
     },
     
-    GetDrawType : function ( programId)
+    GetDrawType : function (meshguid, programId)
     {
         switch (programId)
         {
@@ -77,7 +100,34 @@ MeshManager.prototype = {
             return Mesh.DRAW_LINES;
             break;
         case MeshPrograms.DEFAULT_LAMBERT:
-            return Mesh.DRAW_SOLID;
+            if (meshguid == this.mSelectionState.meshId && this.mMode == MeshManager.MODE_VERTEX) 
+            {
+                return Mesh.DRAW_VERTEX;
+            }
+            else
+            {
+                return Mesh.DRAW_SOLID;
+            }
+            break;
+        }
+        return Mesh.DRAW_SOLID;
+    },
+
+    SetRenderState : function (gl, programId)
+    {
+        switch (programId)
+        {
+        case MeshPrograms.SELECTION_HIGHLIGHTS:
+            gl.cullFace(gl.FRONT);
+            gl.depthFunc(gl.LEQUAL);
+            break;
+        /*case MeshPrograms.DEFAULT_LAMBERT:
+            gl.cullFace(gl.FRONT_AND_BACK);
+            gl.depthFunc(gl.LESS);
+            break;*/
+        default:
+            gl.cullFace(gl.BACK);
+            gl.depthFunc(gl.LESS);
             break;
         }
         return Mesh.DRAW_SOLID;
@@ -92,8 +142,7 @@ MeshManager.prototype = {
             camera.Dispatch(gl,program);
 
             this.SetUniforms(gl, program, programId);
-            var drawType = this.GetDrawType(programId);
-
+            this.SetRenderState(gl, programId);
             for (var guid in this.mMeshSet)
             {
                 if (
@@ -101,13 +150,10 @@ MeshManager.prototype = {
                      programId != MeshPrograms.SELECTION_HIGHLIGHTS
                    )
                 {
+                    var drawType = this.GetDrawType(guid, programId);
                     var mesh = this.mMeshSet[guid];
                     this.SetUniformsPerMesh(gl, program, programId, mesh);
                     mesh.Draw(gl, program, drawType);
-                    if (programId == MeshPrograms.SELECTION_HIGHLIGHTS)
-                    {
-                        mesh.Draw(gl, program, Mesh.DRAW_VERTEX);
-                    }
                 }
             }
             if (programId != MeshPrograms.SELECTION)

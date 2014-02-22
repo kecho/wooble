@@ -70,6 +70,14 @@ ViewportMouseCmd.prototype = {
         }
     },
 
+    OnKeyDown : function (e)
+    {
+        if (String.fromCharCode(e.which) == "E")
+        {
+            this.mCommandState = ViewportMouseCmd.EDIT_VERTEX_SIGNAL;
+        }
+    },
+
     OnMouseLeave : function (e)
     {
         this.mIsDown = false;
@@ -86,7 +94,8 @@ ViewportMouseCmd.prototype = {
 ViewportMouseCmd.NONE = 0;
 ViewportMouseCmd.MOVE_CAMERA = 1;
 ViewportMouseCmd.SELECT_SIGNAL = 3;
-ViewportMouseCmd.MOVE_GEOMETRY = 4;
+ViewportMouseCmd.EDIT_VERTEX_SIGNAL = 4;
+ViewportMouseCmd.MOVE_GEOMETRY = 5;
 
 function Viewport(viewportDiv)
 {
@@ -184,6 +193,16 @@ Viewport.prototype = {
                 this.mViewport.mViewportMouseCmd.OnMouseLeave(e);
             }
         );
+
+        var __self = this;
+
+        document.addEventListener(
+            "keydown",
+            function(e)
+            {
+                __self.mViewportMouseCmd.OnKeyDown(e);
+            }
+        );
     },
 
     UpdateState : function()
@@ -219,13 +238,13 @@ Viewport.prototype = {
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
         gl.enable(gl.DEPTH_TEST);
+        gl.enable(gl.CULL_FACE);
 
 
         if (this.mMeshManager.StateReady())
         {
-            this.mMeshManager.Render(gl, this.mCamera, MeshPrograms.SELECTION_HIGHLIGHTS);
-            gl.clear(gl.DEPTH_BUFFER_BIT);
             this.mMeshManager.Render(gl, this.mCamera, MeshPrograms.DEFAULT_LAMBERT);
+            this.mMeshManager.Render(gl, this.mCamera, MeshPrograms.SELECTION_HIGHLIGHTS);
         }
 
         if (this.mRenderDebugPasses & Viewport.DebugPasses.SELECTION)
@@ -251,6 +270,12 @@ Viewport.prototype = {
             this.mRenderSelectionPassRequest.doRender = true;
             this.mRenderSelectionPassRequest.selectionCoord.x = this.mViewportMouseCmd.mArgs.x;
             this.mRenderSelectionPassRequest.selectionCoord.y = this.mViewportMouseCmd.mArgs.y;
+            this.mViewportMouseCmd.ClearArgs();
+        }
+
+        if (this.mMeshManager.HasSelectedMesh() && this.mViewportMouseCmd.GetState() == ViewportMouseCmd.EDIT_VERTEX_SIGNAL)
+        {
+            this.mMeshManager.OpenEditMode();
             this.mViewportMouseCmd.ClearArgs();
         }
     },

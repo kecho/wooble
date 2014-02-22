@@ -319,7 +319,11 @@ PrimitiveFactory = {
                     var lowerLeft = leftLoop + next;
                     var upperRight = rightLoop + j;
                     var lowerRight = rightLoop + next;
-                    pushSphereQuad(ind, upperLeft, lowerLeft, upperRight, lowerRight);
+                    if (j < divisions)
+                        pushSphereQuad(ind, upperLeft, lowerLeft, upperRight, lowerRight);
+                    else
+                        pushSphereQuad(ind, upperLeft, upperRight,  lowerLeft, lowerRight );
+
                 }
             }
             else
@@ -330,7 +334,10 @@ PrimitiveFactory = {
                     var lowerLeft = leftLoop + ((j + 1) % loopSize);
                     var upperRight = (loopSize - j) % loopSize;
                     var lowerRight = loopSize - (j + 1);
-                    pushSphereQuad(ind, upperLeft, lowerLeft, upperRight, lowerRight);
+                    if (j < divisions)
+                        pushSphereQuad(ind, upperLeft, lowerLeft, upperRight, lowerRight);
+                    else
+                        pushSphereQuad(ind, upperLeft, upperRight,  lowerLeft, lowerRight );
                 }
             }
         }
