@@ -218,12 +218,14 @@ Viewport.prototype = {
     {
         var gl = this.mGl;
         gl.viewport(0,0,this.mCanvas.width,this.mCanvas.height);
+        gl.enable(gl.DEPTH_TEST);
         if (this.mRenderSelectionPassRequest.doRender)
         {
             this.mSurfaces.selection.Use(gl);
-            if (Viewport.DEACTIVATE) gl.clearColor(0,0,0,0);
-            if (Viewport.DEACTIVATE) gl.clear(gl.COLOR_BUFFER_BIT);
-            if (Viewport.DEACTIVATE) this.mMeshManager.Render(gl, this.mCamera, MeshPrograms.SELECTION);
+            gl.disable(gl.CULL_FACE);
+            gl.clearColor(0,0,0,0);
+            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+            this.mMeshManager.Render(gl, this.mCamera, MeshManager.PASS_SELECTION);
             gl.readPixels(
                 this.mRenderSelectionPassRequest.selectionCoord.x,
                 this.mCanvas.height-this.mRenderSelectionPassRequest.selectionCoord.y,
@@ -235,21 +237,21 @@ Viewport.prototype = {
             this.mRenderSelectionPassRequest.doRender = false;
         }
         gl.clearColor(0.6,0.6,0.6,1.0);
-        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-
-        gl.enable(gl.DEPTH_TEST);
         gl.enable(gl.CULL_FACE);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
 
         if (this.mMeshManager.StateReady())
         {
-            this.mMeshManager.Render(gl, this.mCamera, MeshPrograms.DEFAULT_LAMBERT);
-            this.mMeshManager.Render(gl, this.mCamera, MeshPrograms.SELECTION_HIGHLIGHTS);
+            this.mMeshManager.Render(gl, this.mCamera, MeshManager.PASS_LAMBERT);
+            this.mMeshManager.Render(gl, this.mCamera, MeshManager.PASS_MESH_HIGHLIGHT);
+            this.mMeshManager.Render(gl, this.mCamera, MeshManager.PASS_MESH_HIGHLIGHT_VERTICES);
         }
 
         if (this.mRenderDebugPasses & Viewport.DebugPasses.SELECTION)
         {
             Render.UseProgram(gl, this.mScreenPass.GetProgram());
+            gl.disable(gl.DEPTH_TEST);
             this.mScreenPass.GetProgram().SetTexture( gl, "texture_0", 0, this.mSurfaces.selection.GetTextureView())
             //gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
             this.mScreenPass.RenderQuad(gl);

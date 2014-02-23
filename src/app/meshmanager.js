@@ -1,6 +1,6 @@
 function MeshManager ()
 {
-    this.mNextMeshGuid = 1; //guid 0 reserved for none
+    this.mNextMeshGuid = 234; //guid 0 reserved for none
     this.mState = MeshManager.STATE_NONE;
     this.mMeshSet = {};
     this.mGrid = new XYZGrid();
@@ -24,6 +24,11 @@ MeshManager.STATE_READY = 3;
 
 MeshManager.MODE_MESH = 0;
 MeshManager.MODE_VERTEX = 1;
+
+MeshManager.PASS_LAMBERT = 0;
+MeshManager.PASS_MESH_HIGHLIGHT = 1;
+MeshManager.PASS_MESH_HIGHLIGHT_VERTICES = 2;
+MeshManager.PASS_SELECTION = 3;
 
 MeshManager.prototype = {
 
@@ -54,6 +59,26 @@ MeshManager.prototype = {
         }
     },
 
+    GetProgramId : function (pass)
+    {
+        switch (pass)
+        {
+        case MeshManager.PASS_MESH_HIGHLIGHT:
+            return MeshPrograms.SELECTION_HIGHLIGHTS;
+            break;
+        case MeshManager.PASS_MESH_HIGHLIGHT_VERTICES:
+            return MeshPrograms.SELECTION_HIGHLIGHTS;
+            break;
+        case MeshManager.PASS_SELECTION:
+            return MeshPrograms.SELECTION;
+            break;
+        case MeshManager.PASS_LAMBERT:
+        default:
+            return MeshPrograms.DEFAULT_LAMBERT;
+            break;
+        }
+    },
+
     HasSelectedMesh : function ()
     {
         return this.mSelectionState.meshId != 0;
@@ -69,17 +94,26 @@ MeshManager.prototype = {
         this.mMode = MeshManager.MODE_MESH;
     },
 
-    SetUniforms : function (gl, program,  programId)
+    SetUniforms : function (gl, program,  pass)
     {
-        switch (programId)
+        var depthBias = 0;
+        switch (pass)
         {
-        case MeshPrograms.SELECTION_HIGHLIGHTS:
-            program.SetFloat4(gl, "color", [0.0,1.0,0.0,1.0]);
-            gl.lineWidth(10.0);
+        case MeshManager.PASS_MESH_HIGHLIGHT:
+            program.SetFloat4(gl, "color", Config.Colors.MeshSelected);
+            gl.lineWidth(1.0);
             break;
-        case MeshPrograms.DEFAULT_LAMBERT:
+        case MeshManager.PASS_MESH_HIGHLIGHT_VERTICES:
+            program.SetFloat4(gl, "color", Config.Colors.VertexUnselected);
+            depthBias = 0.01;
+            gl.lineWidth(1.0); break;
+        case MeshManager.PASS_SELECTION:
+            break;
+        case MeshManager.PASS_LAMBERT:
+        default:
             break;
         }
+        program.SetFloat(gl, "depthBias", depthBias);
     },
 
     SetUniformsPerMesh : function (gl, program,  programId, mesh)
@@ -88,43 +122,42 @@ MeshManager.prototype = {
         {
         case MeshPrograms.SELECTION:
             program.SetInt(gl, "meshId", mesh.__guid);
+        default:
             break;
         }
     },
     
-    GetDrawType : function (meshguid, programId)
+    GetDrawType : function (pass)
     {
-        switch (programId)
+        switch (pass)
         {
-        case MeshPrograms.SELECTION_HIGHLIGHTS:
+        case MeshManager.PASS_MESH_HIGHLIGHT:
             return Mesh.DRAW_LINES;
             break;
-        case MeshPrograms.DEFAULT_LAMBERT:
-            if (meshguid == this.mSelectionState.meshId && this.mMode == MeshManager.MODE_VERTEX) 
-            {
-                return Mesh.DRAW_VERTEX;
-            }
-            else
-            {
-                return Mesh.DRAW_SOLID;
-            }
+        case MeshManager.PASS_MESH_HIGHLIGHT_VERTICES:
+            return Mesh.DRAW_VERTEX;
+            break;
+        case MeshManager.PASS_DEFAULT_LAMBERT:
+            return Mesh.DRAW_SOLID;
             break;
         }
         return Mesh.DRAW_SOLID;
     },
 
-    SetRenderState : function (gl, programId)
+    SetRenderState : function (gl, pass)
     {
-        switch (programId)
+        switch (pass)
         {
-        case MeshPrograms.SELECTION_HIGHLIGHTS:
+        case MeshManager.PASS_MESH_HIGHLIGHT_VERTICES:
             gl.cullFace(gl.FRONT);
             gl.depthFunc(gl.LEQUAL);
             break;
-        /*case MeshPrograms.DEFAULT_LAMBERT:
-            gl.cullFace(gl.FRONT_AND_BACK);
+        case MeshManager.PASS_MESH_HIGHLIGHT:
             gl.depthFunc(gl.LESS);
-            break;*/
+            gl.cullFace(gl.FRONT);
+            gl.depthFunc(gl.LEQUAL);
+            break;
+        case MeshManager.PASS_SELECTION:
         default:
             gl.cullFace(gl.BACK);
             gl.depthFunc(gl.LESS);
@@ -133,24 +166,31 @@ MeshManager.prototype = {
         return Mesh.DRAW_SOLID;
     },
 
-    Render : function(gl, camera, programId)
+    Render : function(gl, camera, pass)
     {
         if (this.StateReady())
         {
+            if (
+                (pass == MeshManager.PASS_MESH_HIGHLIGHT_VERTICES && this.mMode != MeshManager.MODE_VERTEX)
+               )
+            {
+                return;
+            }
+            var programId = this.GetProgramId(pass);
             var program = this.mMeshPrograms.Get(programId);
             Render.UseProgram(gl, program);
             camera.Dispatch(gl,program);
 
-            this.SetUniforms(gl, program, programId);
+            this.SetUniforms(gl, program, pass);
             this.SetRenderState(gl, programId);
             for (var guid in this.mMeshSet)
             {
                 if (
-                    (programId == MeshPrograms.SELECTION_HIGHLIGHTS && guid == this.mSelectionState.meshId) ||
-                     programId != MeshPrograms.SELECTION_HIGHLIGHTS
+                    ((pass == MeshManager.PASS_MESH_HIGHLIGHT || pass == MeshManager.PASS_MESH_HIGHLIGHT_VERTICES ) && guid == this.mSelectionState.meshId) ||
+                     (pass != MeshManager.PASS_MESH_HIGHLIGHT && pass != MeshManager.PASS_MESH_HIGHLIGHT_VERTICES)
                    )
                 {
-                    var drawType = this.GetDrawType(guid, programId);
+                    var drawType = this.GetDrawType(pass);
                     var mesh = this.mMeshSet[guid];
                     this.SetUniformsPerMesh(gl, program, programId, mesh);
                     mesh.Draw(gl, program, drawType);

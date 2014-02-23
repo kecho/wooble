@@ -248,8 +248,8 @@ PrimitiveFactory = {
 
         quad.mIndices = new Uint16Array(
             [
-                0,2,1,
-                3,1,2
+                0,1,2,
+                3,2,1
             ]
         );
 
@@ -319,6 +319,7 @@ PrimitiveFactory = {
                     var lowerLeft = leftLoop + next;
                     var upperRight = rightLoop + j;
                     var lowerRight = rightLoop + next;
+                    //TODO: make quads equal horizontally
                     if (j < divisions)
                         pushSphereQuad(ind, upperLeft, lowerLeft, upperRight, lowerRight);
                     else
