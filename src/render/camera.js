@@ -46,14 +46,13 @@ Camera.prototype = {
             var axis = V3.mulNoRot(this.mITXViewMatrix, [1,0,0]);
             M4x4.rotate(4 * rotVector.y, axis, this.mViewMatrix, this.mViewMatrix);
         }
-        //M4x4.rotate(-4 * rotVector.y, [1,0,0], this.mViewMatrix, this.mViewMatrix);
-        //M4x4.rotate(4 * rotVector.x, [0,1,0], this.mViewMatrix, this.mViewMatrix);
     },
     
     UpdateState : function ()
     {
         M4x4.inverseOrthonormal(this.mViewMatrix, this.mITXViewMatrix);
         M4x4.mul(this.mProjection, this.mViewMatrix, this.mViewProj); 
+
     },
 
     Dispatch : function (gl, program)

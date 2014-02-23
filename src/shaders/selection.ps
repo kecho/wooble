@@ -1,6 +1,9 @@
 precision mediump float; 
 
 uniform int meshId;
+uniform float isVertexSelection;
+
+varying float vVertexId;
 
 int imod(int a, int b)
 {
@@ -13,7 +16,15 @@ int imax(int a, int b)
 }
 
 void main() {
-    int k = imax(meshId, 0);
+    int k = 0;
+    if (isVertexSelection > 0.5)
+    {
+        k = imax(int(vVertexId), 0);
+    }
+    else
+    {
+        k = imax(meshId, 0);
+    }
     int r = imod(k, 256);
     int g = imod((k / 256), 256);
     int b = imod((k / 65536), 256);

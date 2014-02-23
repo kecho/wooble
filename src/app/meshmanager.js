@@ -29,6 +29,7 @@ MeshManager.PASS_LAMBERT = 0;
 MeshManager.PASS_MESH_HIGHLIGHT = 1;
 MeshManager.PASS_MESH_HIGHLIGHT_VERTICES = 2;
 MeshManager.PASS_SELECTION = 3;
+MeshManager.PASS_SELECTION_VERTEX = 4;
 
 MeshManager.prototype = {
 
@@ -69,6 +70,7 @@ MeshManager.prototype = {
         case MeshManager.PASS_MESH_HIGHLIGHT_VERTICES:
             return MeshPrograms.SELECTION_HIGHLIGHTS;
             break;
+        case MeshManager.PASS_SELECTION_VERTEX:
         case MeshManager.PASS_SELECTION:
             return MeshPrograms.SELECTION;
             break;
@@ -94,6 +96,11 @@ MeshManager.prototype = {
         this.mMode = MeshManager.MODE_MESH;
     },
 
+    GetMode : function ()
+    {
+        return this.mMode;
+    },
+
     SetUniforms : function (gl, program,  pass)
     {
         var depthBias = 0;
@@ -108,6 +115,10 @@ MeshManager.prototype = {
             depthBias = 0.01;
             gl.lineWidth(1.0); break;
         case MeshManager.PASS_SELECTION:
+            program.SetFloat(gl, "isVertexSelection", 0.0);
+            break;
+        case MeshManager.PASS_SELECTION_VERTEX:
+            program.SetFloat(gl, "isVertexSelection", 1.0);
             break;
         case MeshManager.PASS_LAMBERT:
         default:
@@ -139,6 +150,8 @@ MeshManager.prototype = {
             break;
         case MeshManager.PASS_DEFAULT_LAMBERT:
             return Mesh.DRAW_SOLID;
+        case MeshManager.PASS_SELECTION_VERTEX:
+            return Mesh.DRAW_VERTEX;
             break;
         }
         return Mesh.DRAW_SOLID;
@@ -158,6 +171,7 @@ MeshManager.prototype = {
             gl.depthFunc(gl.LEQUAL);
             break;
         case MeshManager.PASS_SELECTION:
+        case MeshManager.PASS_SELECTION_VERTEX:
         default:
             gl.cullFace(gl.BACK);
             gl.depthFunc(gl.LESS);
@@ -196,7 +210,7 @@ MeshManager.prototype = {
                     mesh.Draw(gl, program, drawType);
                 }
             }
-            if (programId != MeshPrograms.SELECTION)
+            if (pass == MeshManager.PASS_LAMBERT)
                 this.mGrid.Render(gl, camera);
             
         }
