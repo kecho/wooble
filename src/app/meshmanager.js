@@ -1,6 +1,6 @@
 function MeshManager ()
 {
-    this.mNextMeshGuid = 234; //guid 0 reserved for none
+    this.mNextMeshGuid = 1; //guid 0 reserved for none
     this.mState = MeshManager.STATE_NONE;
     this.mMeshSet = {};
     this.mGrid = new XYZGrid();
