@@ -1,10 +1,11 @@
 function MeshManager ()
 {
-    this.mNextMeshGuid = 1; //guid 0 reserved for none
+    this.mNextMeshGuid = 234; //guid 0 reserved for none
     this.mState = MeshManager.STATE_NONE;
     this.mMeshSet = {};
     this.mGrid = new XYZGrid();
     this.mMeshPrograms = new MeshPrograms();
+    this.mMode = MeshManager.MODE_MESH;
     this.mSelectionState = 
     {
         meshId : 0,
@@ -20,6 +21,15 @@ MeshManager.STATE_NONE = 0;
 MeshManager.STATE_LOADING_SHADERS = 1;
 MeshManager.STATE_ERROR = 2;
 MeshManager.STATE_READY = 3;
+
+MeshManager.MODE_MESH = 0;
+MeshManager.MODE_VERTEX = 1;
+
+MeshManager.PASS_LAMBERT = 0;
+MeshManager.PASS_MESH_HIGHLIGHT = 1;
+MeshManager.PASS_MESH_HIGHLIGHT_VERTICES = 2;
+MeshManager.PASS_SELECTION = 3;
+MeshManager.PASS_SELECTION_VERTEX = 4;
 
 MeshManager.prototype = {
 
@@ -44,19 +54,77 @@ MeshManager.prototype = {
     HighlightMesh : function (id)
     {
         this.mSelectionState.meshId = id;
+        if (id == 0)
+        {
+            this.OpenMeshMode();
+        }
     },
 
-    SetUniforms : function (gl, program,  programId)
+    GetProgramId : function (pass)
     {
-        switch (programId)
+        switch (pass)
         {
-        case MeshPrograms.SELECTION_HIGHLIGHTS:
-            program.SetFloat4(gl, "color", [0.0,1.0,0.0,1.0]);
-            gl.lineWidth(10.0);
+        case MeshManager.PASS_MESH_HIGHLIGHT:
+            return MeshPrograms.SELECTION_HIGHLIGHTS;
             break;
-        case MeshPrograms.DEFAULT_LAMBERT:
+        case MeshManager.PASS_MESH_HIGHLIGHT_VERTICES:
+            return MeshPrograms.SELECTION_HIGHLIGHTS;
+            break;
+        case MeshManager.PASS_SELECTION_VERTEX:
+        case MeshManager.PASS_SELECTION:
+            return MeshPrograms.SELECTION;
+            break;
+        case MeshManager.PASS_LAMBERT:
+        default:
+            return MeshPrograms.DEFAULT_LAMBERT;
             break;
         }
+    },
+
+    HasSelectedMesh : function ()
+    {
+        return this.mSelectionState.meshId != 0;
+    },
+
+    OpenEditMode : function ()
+    {
+        this.mMode = MeshManager.MODE_VERTEX;
+    },
+
+    OpenMeshMode : function ()
+    {
+        this.mMode = MeshManager.MODE_MESH;
+    },
+
+    GetMode : function ()
+    {
+        return this.mMode;
+    },
+
+    SetUniforms : function (gl, program,  pass)
+    {
+        var depthBias = 0;
+        switch (pass)
+        {
+        case MeshManager.PASS_MESH_HIGHLIGHT:
+            program.SetFloat4(gl, "color", Config.Colors.MeshSelected);
+            gl.lineWidth(1.0);
+            break;
+        case MeshManager.PASS_MESH_HIGHLIGHT_VERTICES:
+            program.SetFloat4(gl, "color", Config.Colors.VertexUnselected);
+            depthBias = 0.01;
+            gl.lineWidth(1.0); break;
+        case MeshManager.PASS_SELECTION:
+            program.SetFloat(gl, "isVertexSelection", 0.0);
+            break;
+        case MeshManager.PASS_SELECTION_VERTEX:
+            program.SetFloat(gl, "isVertexSelection", 1.0);
+            break;
+        case MeshManager.PASS_LAMBERT:
+        default:
+            break;
+        }
+        program.SetFloat(gl, "depthBias", depthBias);
     },
 
     SetUniformsPerMesh : function (gl, program,  programId, mesh)
@@ -65,52 +133,84 @@ MeshManager.prototype = {
         {
         case MeshPrograms.SELECTION:
             program.SetInt(gl, "meshId", mesh.__guid);
+        default:
             break;
         }
     },
     
-    GetDrawType : function ( programId)
+    GetDrawType : function (pass)
     {
-        switch (programId)
+        switch (pass)
         {
-        case MeshPrograms.SELECTION_HIGHLIGHTS:
+        case MeshManager.PASS_MESH_HIGHLIGHT:
             return Mesh.DRAW_LINES;
             break;
-        case MeshPrograms.DEFAULT_LAMBERT:
+        case MeshManager.PASS_MESH_HIGHLIGHT_VERTICES:
+            return Mesh.DRAW_VERTEX;
+            break;
+        case MeshManager.PASS_DEFAULT_LAMBERT:
             return Mesh.DRAW_SOLID;
+        case MeshManager.PASS_SELECTION_VERTEX:
+            return Mesh.DRAW_VERTEX;
             break;
         }
         return Mesh.DRAW_SOLID;
     },
 
-    Render : function(gl, camera, programId)
+    SetRenderState : function (gl, pass)
+    {
+        switch (pass)
+        {
+        case MeshManager.PASS_MESH_HIGHLIGHT_VERTICES:
+            gl.cullFace(gl.FRONT);
+            gl.depthFunc(gl.LEQUAL);
+            break;
+        case MeshManager.PASS_MESH_HIGHLIGHT:
+            gl.depthFunc(gl.LESS);
+            gl.cullFace(gl.FRONT);
+            gl.depthFunc(gl.LEQUAL);
+            break;
+        case MeshManager.PASS_SELECTION:
+        case MeshManager.PASS_SELECTION_VERTEX:
+        default:
+            gl.cullFace(gl.BACK);
+            gl.depthFunc(gl.LESS);
+            break;
+        }
+        return Mesh.DRAW_SOLID;
+    },
+
+    Render : function(gl, camera, pass)
     {
         if (this.StateReady())
         {
+            if (
+                (pass == MeshManager.PASS_MESH_HIGHLIGHT_VERTICES && this.mMode != MeshManager.MODE_VERTEX)
+               )
+            {
+                return;
+            }
+            var programId = this.GetProgramId(pass);
             var program = this.mMeshPrograms.Get(programId);
             Render.UseProgram(gl, program);
             camera.Dispatch(gl,program);
 
-            this.SetUniforms(gl, program, programId);
-            var drawType = this.GetDrawType(programId);
-
+            this.SetUniforms(gl, program, pass);
+            this.SetRenderState(gl, programId);
             for (var guid in this.mMeshSet)
             {
                 if (
-                    (programId == MeshPrograms.SELECTION_HIGHLIGHTS && guid == this.mSelectionState.meshId) ||
-                     programId != MeshPrograms.SELECTION_HIGHLIGHTS
+                    ((pass == MeshManager.PASS_MESH_HIGHLIGHT || pass == MeshManager.PASS_MESH_HIGHLIGHT_VERTICES ) && guid == this.mSelectionState.meshId) ||
+                     (pass != MeshManager.PASS_MESH_HIGHLIGHT && pass != MeshManager.PASS_MESH_HIGHLIGHT_VERTICES)
                    )
                 {
+                    var drawType = this.GetDrawType(pass);
                     var mesh = this.mMeshSet[guid];
                     this.SetUniformsPerMesh(gl, program, programId, mesh);
                     mesh.Draw(gl, program, drawType);
-                    if (programId == MeshPrograms.SELECTION_HIGHLIGHTS)
-                    {
-                        mesh.Draw(gl, program, Mesh.DRAW_VERTEX);
-                    }
                 }
             }
-            if (programId != MeshPrograms.SELECTION)
+            if (pass == MeshManager.PASS_LAMBERT)
                 this.mGrid.Render(gl, camera);
             
         }

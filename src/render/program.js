@@ -55,11 +55,18 @@ Program.prototype = {
         
     },
 
+    SetFloat : function (gl, str, value)
+    {
+        var u = this.FindAndCacheUniform(gl,str);
+        gl.uniform1f(u, value);
+    },
+
     SetFloat4 : function (gl, str, value)
     {
         var u = this.FindAndCacheUniform(gl,str);
         gl.uniform4fv(u, value);
     },
+
 
     SetFloat3 : function (gl, str, value)
     {
