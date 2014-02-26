@@ -1,5 +1,8 @@
 attribute vec3 aPosition;
 attribute vec3 aNormal;
+attribute vec4 aPrivateColor;
+
+//private attributes
 attribute float aVertexId;
 
 uniform float depthBias;
@@ -7,6 +10,7 @@ uniform mat4 uViewProj;
 
 varying vec3 vWorldPosition;
 varying vec3 vWorldNormal;
+varying vec4 vPrivateColor;
 varying vec4 vScreen;
 varying float vVertexId;
 
@@ -17,6 +21,7 @@ void main () {
     vWorldNormal = aNormal ;
     vScreen = projPos;
     vVertexId = aVertexId;
+    vPrivateColor = aPrivateColor;
     gl_Position = projPos;
     gl_Position.z -= depthBias * gl_Position.w;
     gl_PointSize = 6.0;

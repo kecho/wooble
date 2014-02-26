@@ -9,6 +9,7 @@ function MeshManager ()
     this.mSelectionState = 
     {
         meshId : 0,
+        vertexHoverIndex : 0,
         vertexIndex : 0,
         isVertex : false
     };
@@ -45,10 +46,26 @@ MeshManager.prototype = {
         delete this.mMeshSet[id];
     },
 
+    GetIdFromPixel : function (p)
+    {
+        return p[0] + 256 * p[1] + 65536 * p[2] + 16777216 * p[3];
+    },
+
+    SetVertexHover : function (p)
+    {
+        var id = this.GetIdFromPixel(p);
+        if (
+            this.mSelectionState.meshId != 0 &&
+            id != this.mSelectionState.vertexHoverIndex
+         )
+        {
+            this.mSelectionState.vertexHoverIndex = id;
+        } 
+    },
+
     SetSelectionFromPixel : function (p)
     {
-        var id = p[0] + 256 * p[1] + 65536 * p[2] + 16777216 * p[3];
-        this.HighlightMesh(id);
+        this.HighlightMesh(this.GetIdFromPixel(p));
     },
 
     HighlightMesh : function (id)
@@ -108,10 +125,12 @@ MeshManager.prototype = {
         {
         case MeshManager.PASS_MESH_HIGHLIGHT:
             program.SetFloat4(gl, "color", Config.Colors.MeshSelected);
+            program.SetFloat (gl, "privateColorBlend", 0.0);
             gl.lineWidth(1.0);
             break;
         case MeshManager.PASS_MESH_HIGHLIGHT_VERTICES:
             program.SetFloat4(gl, "color", Config.Colors.VertexUnselected);
+            program.SetFloat (gl, "privateColorBlend", 1.0);
             depthBias = 0.01;
             gl.lineWidth(1.0); break;
         case MeshManager.PASS_SELECTION:

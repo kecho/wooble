@@ -1,7 +1,41 @@
 AttribType = {
-    POS :    {id:0, size:3, name:"aPosition", bytes:4},
-    NORMAL : {id:1, size:3, name: "aNormal",  bytes:4} ,
-    VERTEX_ID : {id:2, size:1, name: "aVertexId", bytes:2}
+    POS :    {id:0, glType: "FLOAT", size:3, name:"aPosition", bytes:4},
+    NORMAL : {id:1, glType: "FLOAT", size:3, name: "aNormal",  bytes:4} ,
+    VERTEX_DYNAMIC_COLOR : {id:2, glType: "FLOAT", size:4, name: "aPrivateColor", bytes:4},
+    VERTEX_ID : {id:3, glType: "UNSIGNED_SHORT", size:1, name: "aVertexId", bytes:2},
+}
+function VertexFormat (typeList)
+{
+    this.mTypes = typeList;
+    this.mStrideSize = 0;
+    this.mStrideElementCount = 0;
+    this.UpdateFormatMetaData();
+}
+
+VertexFormat.prototype = {
+    SetFormat : function (typeList)
+    {
+        this.mTypes = typeList;
+        this.UpdateFormatMetaData();
+    },
+
+    GetFormat : function () { return this.mTypes; },
+
+    GetElementCount : function() { return this.mStrideElSize; },
+
+    GetByteStride : function () { return this.mStrideSize; },
+
+    UpdateFormatMetaData : function()
+    {
+        this.mStrideSize = 0;
+        this.mStrideElSize = 0;
+        for (var i in this.mTypes)
+        {
+            var attribEl = this.mTypes[i];
+            this.mStrideSize += attribEl.size * attribEl.bytes;
+            this.mStrideElSize += attribEl.size;
+        }
+    }
 }
 
 
@@ -10,15 +44,28 @@ function Mesh()
     this.mIndices = null;
     this.mVertexes = null;
     this.mVertexBuffer = null;
-    this.mVertexIdBuffer = null;
     this.mIndexBuffer = null;
     this.mWireframeIndexBuffer = null;
-    this.mFormat = [];
-    this.mStrideSize = 0;
     this.mState = Mesh.STATE_INIT;
     this.mDirtyIndexBuffer = true;
-    this.mDirtyVertexBuffer = true;
-    this.mDirtyVertexFormat = true;
+
+    this.mStreams = {
+        userStream : {
+             format: new VertexFormat([]), 
+             glBufferHandle : null,
+             dirty: true
+         },
+        internalStream : {
+            format: new VertexFormat([AttribType.VERTEX_DYNAMIC_COLOR]),
+            glBufferHandle : null,
+            dirty: true
+        },
+        vertexIdStream : {
+            format: new VertexFormat([AttribType.VERTEX_ID]),
+            glBufferHandle : null,
+            dirty: true
+        }
+    }
 
 }
 
@@ -40,6 +87,12 @@ Mesh.RegisterVertexLayout = function (gl, program)
 }
 
 Mesh.prototype = {
+    
+    SetFormat : function (varList) 
+    {
+        this.mFormat = varList;
+        this.mStreams.userStream.format.SetFormat(varList);
+    },
 
     StateReady : function () {return this.mState == Mesh.STATE_READY;},
 
@@ -79,7 +132,7 @@ Mesh.prototype = {
         return this.mVertexes.length / vertexSize;
     },
 
-    HandleDirtyFlag : function(gl)
+    HandleDirtyIndexBuffer : function (gl)
     {
         if (this.mDirtyIndexBuffer == true && this.mIndices != null)
         {
@@ -87,7 +140,6 @@ Mesh.prototype = {
             {
                 this.mIndexBuffer = gl.createBuffer();
                 this.mWireframeIndexBuffer = gl.createBuffer();
-                this.mVertexIdBuffer = gl.createBuffer();
             }
 
             gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.mIndexBuffer);
@@ -105,33 +157,45 @@ Mesh.prototype = {
             this.mWireframeIndexBuffer.length = wireframeIndices.length;
 
             this.mDirtyIndexBuffer = false;
-            var vertexId_internal = [];
-            for (var i = 0; i < this.mIndices.length; ++i) vertexId_internal[i] = i;
-            var vertexIds = new Uint16Array(vertexId_internal);
-            gl.bindBuffer(gl.ARRAY_BUFFER, this.mVertexIdBuffer);
-            gl.bufferData(gl.ARRAY_BUFFER, vertexIds, gl.STATIC_DRAW);
         }
 
-        if (this.mDirtyVertexBuffer == true && this.mVertexes != null)
+    },
+
+    HandleDirtyStreamFlag : function (gl, stream, vertexData)
+    {
+        if (stream.dirty && vertexData)
         {
-            if (this.mVertexBuffer == null)
+            if (stream.glBufferHandle == null)
             {
-                this.mVertexBuffer = gl.createBuffer();
+                stream.glBufferHandle = gl.createBuffer();
             }
-
-            gl.bindBuffer(gl.ARRAY_BUFFER, this.mVertexBuffer);
-            gl.bufferData(gl.ARRAY_BUFFER, this.mVertexes, gl.DYNAMIC_DRAW);
-            this.mDirtyVertexBuffer = false;
-
-            this.mStrideSize = 0;
-            for (var i in this.mFormat)
-            {
-                var attribEl = this.mFormat[i];
-                this.mStrideSize += attribEl.size * attribEl.bytes;
-            }
-            
+            gl.bindBuffer(gl.ARRAY_BUFFER, stream.glBufferHandle);
+            gl.bufferData(gl.ARRAY_BUFFER, vertexData, gl.DYNAMIC_DRAW);
+            stream.dirty = false;
         }
+    },
 
+    HandleDirtyFlag : function(gl)
+    {
+        this.HandleDirtyIndexBuffer(gl);
+        this.HandleDirtyStreamFlag(gl, this.mStreams.userStream, this.mVertexes);
+        var vertexId_internal = [];
+
+        for (var i = 0; i < this.mVertexes.length / this.mStreams.userStream.format.GetElementCount(); ++i) vertexId_internal[i] = i;
+        var vertexIds = new Uint16Array(vertexId_internal);
+        this.HandleDirtyStreamFlag(gl, this.mStreams.vertexIdStream, vertexIds);
+        var vertex_internalColors = [];
+        for (var i = 0; i < this.mVertexes.length / this.mStreams.userStream.format.GetElementCount(); ++i)
+             vertex_internalColors.push(
+                    Config.Colors.VertexUnselected[0],
+                    Config.Colors.VertexUnselected[1],
+                    Config.Colors.VertexUnselected[2],
+                    Config.Colors.VertexUnselected[3]);
+
+        var vertexColorBuff = new Float32Array(vertex_internalColors);
+        this.HandleDirtyStreamFlag(gl, this.mStreams.internalStream, vertexColorBuff);
+
+        this.HandleDirtyStreamFlag(gl, this.mStreams.userStream, this.mVertexBuffer);
     },
 
     UpdateState : function (gl)
@@ -139,36 +203,36 @@ Mesh.prototype = {
         this.HandleDirtyFlag(gl);
     },
 
-    DispatchVertexFormat : function(gl, program)
+    DispatchStream : function (gl, stream, program)
     {
-        var curOffset = 0;
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.mVertexBuffer);
-        for (var i in this.mFormat)
+        var typeList = stream.format.GetFormat();
+        var offset = 0;
+        gl.bindBuffer(gl.ARRAY_BUFFER, stream.glBufferHandle);
+        for (var i = 0; i < typeList.length; ++i)
         {
-            var attribEl = this.mFormat[i];
-            var attribLoc = program.GetVertexAttributeLocation(attribEl.id);
+            var el = typeList[i];
+            var attribLoc = program.GetVertexAttributeLocation(el.id);
             if (attribLoc != -1)
             {
+            
                 gl.enableVertexAttribArray(attribLoc);
-                gl.vertexAttribPointer(attribLoc, attribEl.size, gl.FLOAT/*HACK*/, false/*normalized*/, this.mStrideSize, curOffset);
-                curOffset += attribEl.size * attribEl.bytes;
+                gl.vertexAttribPointer(
+                         attribLoc,
+                         el.size,
+                         gl[el.glType], 
+                         false /*normalized*/,
+                         stream.format.GetByteStride(),
+                         offset);
+                offset += el.size * el.bytes;
             }
         }
-
-        var vertexIdLoc = program.GetVertexAttributeLocation(AttribType.VERTEX_ID.id);
-
-        if (vertexIdLoc != -1)
-        {
-            gl.enableVertexAttribArray(vertexIdLoc);
-            gl.bindBuffer(gl.ARRAY_BUFFER, this.mVertexIdBuffer);
-            gl.vertexAttribPointer(vertexIdLoc, AttribType.VERTEX_ID.size, gl.UNSIGNED_SHORT, false, 0, 0);
-        }
-         
     },
      
     Draw : function (gl, program, type)
     {
-        this.DispatchVertexFormat(gl, program);
+        this.DispatchStream(gl, this.mStreams.userStream, program);
+        this.DispatchStream(gl, this.mStreams.internalStream, program);
+        this.DispatchStream(gl, this.mStreams.vertexIdStream, program);
         switch(type)
         {
         case (Mesh.DRAW_SOLID):
@@ -214,7 +278,7 @@ PrimitiveFactory = {
             ]
         );
 
-        cube.mFormat = [AttribType.POS, AttribType.NORMAL];
+        cube.SetFormat( [AttribType.POS, AttribType.NORMAL] );
 
         for (var i = 0; i < cube.mVertexes.length; ++i) cube.mVertexes[i] *= dim;
 
@@ -244,7 +308,7 @@ PrimitiveFactory = {
             ]
         );
 
-        quad.mFormat = [AttribType.POS];
+        quad.SetFormat( [AttribType.POS] );
 
         quad.mIndices = new Uint16Array(
             [
@@ -291,7 +355,7 @@ PrimitiveFactory = {
         );
         var totalVertexes = (vertexList.length/6);
 
-        sphere.mFormat = [AttribType.POS, AttribType.NORMAL];
+        sphere.SetFormat ( [AttribType.POS, AttribType.NORMAL] );
 
         var ind = [];
         // for (var i = 0; i < sphere.mVertexes.length / 6; ++i) ind.push(i);
