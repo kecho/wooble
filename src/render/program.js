@@ -19,7 +19,7 @@ function Program(name)
 }
 
 Program.STATE_NONE = 0;
-Program.STATE_FINISHED = 1;
+Program.STATE_READY = 1;
 Program.STATE_LOADING = 2;
 Program.STATE_COMPILING = 3;
 Program.STATE_LINKING = 4;
