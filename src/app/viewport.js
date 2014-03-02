@@ -88,7 +88,7 @@ ViewportMouseCmd.prototype = {
     {
         if (this.mIsDown)
         {
-            this.mCameraUpdateFinish = true;
+            this.mCameraUpdateFinish = e.button == 0;
         }
         this.mIsDown = false;
         this.mIsSelect = false;
@@ -98,7 +98,7 @@ ViewportMouseCmd.prototype = {
     {
         this.mIsDown = false;
         this.mCommandState = ViewportMouseCmd.NONE;
-        this.mCameraUpdateFinish = true;
+        this.mCameraUpdateFinish = e.button == 0;
     },
 
     IsCameraUpdateDone : function()
@@ -128,12 +128,7 @@ function Viewport(viewportDiv)
     this.InitMouseEventListeners();
     this.mSurfaces = {
         selection : new Surface(
-            this.mDims.width, this.mDims.height,
-            {
-                internalFormat: "RED",
-                format: "R16UI",
-                type: "UNSIGNED_SHORT"
-            }
+            this.mDims.width, this.mDims.height
         )
     };
     this.mViewportDiv.appendChild(this.mCanvas);
@@ -235,6 +230,10 @@ Viewport.prototype = {
     UpdateState : function()
     {
         for (var i in this.mSurfaces) this.mSurfaces[i].UpdateState(this.mGl);
+        if (!this.mSurfaces.selection.HasDepthBuffer() && this.mSurfaces.selection.StateReady())
+        {
+            this.mSurfaces.selection.CreateDepthBuffer(this.mGl);
+        }
         this.ProcessCameraCmds();
         this.mCamera.UpdateState(this.mGl);
         this.mMeshManager.UpdateState(this.mGl);
@@ -263,10 +262,12 @@ Viewport.prototype = {
             {  
                 gl.clearColor(0,0,0,0);
                 gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+                this.mMeshManager.Render(gl, this.mCamera, MeshManager.PASS_SELECTION);
+                gl.clear(gl.COLOR_BUFFER_BIT);
                 this.mMeshManager.Render(gl, this.mCamera, MeshManager.PASS_SELECTION_VERTEX);
                 this.mRenderSelectionPassRequest.renderVertexSelection = false;
             }
-            else
+            else if (this.mMeshManager.GetMode() == MeshManager.MODE_MESH)
             {
                 gl.clearColor(0,0,0,0);
                 gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -278,6 +279,10 @@ Viewport.prototype = {
                 );
                 this.mMeshManager.SetSelectionFromPixel(this.mSelectionPixels);
             }
+            else
+            {
+                this.mMeshManager.RequestSelectVertex(gl);
+            }
             this.mSurfaces.selection.Unuse(gl);
             this.mRenderSelectionPassRequest.renderMeshSelection = false;
         }
@@ -288,7 +293,6 @@ Viewport.prototype = {
         var gl = this.mGl;
         gl.viewport(0,0,this.mCanvas.width,this.mCanvas.height);
         gl.enable(gl.DEPTH_TEST);
-        this.RenderSelectionBuffer(gl);
         gl.clearColor(0.6,0.6,0.6,1.0);
         gl.enable(gl.CULL_FACE);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -299,6 +303,7 @@ Viewport.prototype = {
             this.mMeshManager.Render(gl, this.mCamera, MeshManager.PASS_LAMBERT);
             this.mMeshManager.Render(gl, this.mCamera, MeshManager.PASS_MESH_HIGHLIGHT);
             this.mMeshManager.Render(gl, this.mCamera, MeshManager.PASS_MESH_HIGHLIGHT_VERTICES);
+            this.RenderSelectionBuffer(gl);
         }
 
         if (this.mRenderDebugPasses & Viewport.DebugPasses.SELECTION)
@@ -335,10 +340,18 @@ Viewport.prototype = {
 
         if (this.mMeshManager.HasSelectedMesh() && this.mViewportMouseCmd.GetState() == ViewportMouseCmd.EDIT_VERTEX_SIGNAL)
         {
-            this.mRenderSelectionPassRequest.renderMeshSelection = true;
-            this.mRenderSelectionPassRequest.renderVertexSelection = true;
-            this.mMeshManager.OpenEditMode();
-            this.mViewportMouseCmd.ClearArgs();
+            if (this.mMeshManager.GetMode() == MeshManager.MODE_VERTEX)
+            {
+                this.mMeshManager.OpenMeshMode();
+                this.mViewportMouseCmd.ClearArgs();
+            }
+            else
+            {
+                this.mRenderSelectionPassRequest.renderMeshSelection = true;
+                this.mRenderSelectionPassRequest.renderVertexSelection = true;
+                this.mMeshManager.OpenEditMode();
+                this.mViewportMouseCmd.ClearArgs();
+            }
         }
 
         if (this.mViewportMouseCmd.IsMouseUpdating())

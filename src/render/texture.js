@@ -5,7 +5,6 @@ function Texture()
     this.mDims = null;
     this.mTexureHandle = null;
     this.mCreateFormat = null;
-    this.mAdvanced = null;
 }
 
 Texture.STATE_INIT = 0;
@@ -16,11 +15,10 @@ Texture.STATE_CREATE_REQUEST = 4;
 
 Texture.prototype = {
 
-    Create : function (dims, advanced)
+    Create : function (dims)
     {
         this.mDims = dims;
         this.mState = Texture.STATE_CREATE_REQUEST;
-        this.mAdvanced = advanced;
     },
 
     Load : function (src)
@@ -66,7 +64,7 @@ Texture.prototype = {
             }
         case Texture.STATE_CREATE_REQUEST:
             {
-                this.CreateEmptyTexture(gl, this.mDims, this.mAdvanced);
+                this.CreateEmptyTexture(gl, this.mDims);
                 this.mState = Texture.STATE_READY;
                 break;
             }
@@ -74,12 +72,13 @@ Texture.prototype = {
     }
 }
 
-function Surface(width, height, advanced)
+function Surface(width, height)
 {
     this.mDim = {width: width, height: height};
     this.mFrameBufferHandle = null;
     this.mTextureView = new Texture();
-    this.mTextureView.Create(this.mDim, advanced);
+    this.mTextureView.Create(this.mDim);
+    this.mDepthBuffer = null;
     this.mState = Surface.STATE_INIT;
 }
 
@@ -106,6 +105,11 @@ Surface.prototype = {
         }
     },
 
+    StateReady : function ()
+    {
+        return this.mState == Surface.STATE_READY;
+    },
+
     Use : function (gl)
     {
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.mFrameBufferHandle);
@@ -114,6 +118,31 @@ Surface.prototype = {
     Unuse : function (gl)
     {
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    },
+
+    HasDepthBuffer : function ()
+    {
+        return this.mDepthBuffer != null;
+    },
+
+    GetDepthBuffer  : function ()
+    {
+        return this.mDepthBuffer;
+    },
+
+    AttachDepthBuffer : function (gl, db)
+    {
+        this.mDepthBuffer = db;
+        gl.bindRenderbuffer(gl.RENDERBUFFER, this.mDepthBuffer);
+        gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, this.mDim.width, this.mDim.height);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this.mFrameBufferHandle);
+        gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, this.mDepthBuffer);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    },
+
+    CreateDepthBuffer : function(gl)
+    {
+        this.AttachDepthBuffer(gl, gl.createRenderbuffer());
     },
 
     GetTextureView : function ()

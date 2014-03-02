@@ -5,8 +5,11 @@ attribute vec4 aPrivateColor;
 //private attributes
 attribute float aVertexId;
 
-uniform float depthBias;
+//private matrices
 uniform mat4 uViewProj;
+
+uniform float uDepthBias;
+uniform float uPointSize;
 
 varying vec3 vWorldPosition;
 varying vec3 vWorldNormal;
@@ -23,6 +26,6 @@ void main () {
     vVertexId = aVertexId;
     vPrivateColor = aPrivateColor;
     gl_Position = projPos;
-    gl_Position.z -= depthBias * gl_Position.w;
-    gl_PointSize = 6.0;
+    gl_Position.z -= uDepthBias * gl_Position.w;
+    gl_PointSize = uPointSize;
 }

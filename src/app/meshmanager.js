@@ -10,8 +10,7 @@ function MeshManager ()
     {
         meshId : 0,
         vertexHoverIndex : 0,
-        vertexIndex : 0,
-        isVertex : false
+        vertexes : []
     };
 
     //this.PushMesh(PrimitiveFactory.CreateCube(1.0));
@@ -54,19 +53,86 @@ MeshManager.prototype = {
     SetVertexHover : function (gl, p)
     {
         var id = this.GetIdFromPixel(p);
+        var vertexId = id - 1;
         if (
             this.mSelectionState.meshId != 0 &&
             id != this.mSelectionState.vertexHoverIndex
          )
         {
-            this.mSelectionState.vertexHoverIndex = id;
-            if (id != 0)
-                this.mMeshSet[this.mSelectionState.meshId].SetDynamicVertexColor                (
+            if (this.mSelectionState.vertexHoverIndex != 0 && !this.IsVertexSelected(this.mSelectionState.vertexHoverIndex)) 
+                this.mMeshSet[this.mSelectionState.meshId].SetDynamicVertexColor(
                     gl, 
-                    id, 
-                    Config.Colors.VertexSelectedCol 
+                    this.mSelectionState.vertexHoverIndex - 1, 
+                    Config.Colors.VertexUnselectedCol 
+                );
+            this.mSelectionState.vertexHoverIndex = id;
+            if (id != 0 && !this.IsVertexSelected(id))
+                this.mMeshSet[this.mSelectionState.meshId].SetDynamicVertexColor(
+                    gl, 
+                    vertexId, 
+                    Config.Colors.VertexHoverCol 
                 );
         } 
+    },
+
+    IsVertexSelected : function (id)
+    {
+        return !Core.IsUndefined(this.mSelectionState.vertexes[id]);
+    },
+
+    SelectVertex : function (id)
+    {
+        this.mSelectionState.vertexes[id] = true;
+    },    
+
+    UnselectVertex : function(id)
+    {
+        this.mSelectionState.vertexes[id] = undefined;
+    },
+
+    RequestSelectVertex : function (gl)
+    {
+        if (this.mMode == MeshManager.MODE_VERTEX)
+        {
+            if (this.mSelectionState.vertexHoverIndex != 0 )
+            { 
+                if (!this.IsVertexSelected(this.mSelectionState.vertexHoverIndex))
+                {
+                    this.SelectVertex(this.mSelectionState.vertexHoverIndex);
+                    this.mMeshSet[this.mSelectionState.meshId].SetDynamicVertexColor(
+                        gl, 
+                        this.mSelectionState.vertexHoverIndex - 1, 
+                        Config.Colors.VertexSelectedCol 
+                    );
+                }
+                else
+                {
+                    this.UnselectVertex(this.mSelectionState.vertexHoverIndex);
+                    this.mMeshSet[this.mSelectionState.meshId].SetDynamicVertexColor(
+                        gl, 
+                        this.mSelectionState.vertexHoverIndex - 1, 
+                        Config.Colors.VertexUnselectedCol 
+                    );
+                }
+            }
+            else if (this.mSelectionState.vertexHoverIndex == 0)
+            {
+                this.CleanSelectedVertexes(gl);
+            }
+        }
+    },
+
+    CleanSelectedVertexes : function (gl)
+    {
+        for (var i in this.mSelectionState.vertexes)
+        {
+            this.mMeshSet[this.mSelectionState.meshId].SetDynamicVertexColor(
+                gl, 
+                i - 1,
+                Config.Colors.VertexUnselectedCol 
+            );
+        }
+        this.mSelectionState.vertexes.length = 0;
     },
 
     SetSelectionFromPixel : function (p)
@@ -130,13 +196,21 @@ MeshManager.prototype = {
         switch (pass)
         {
         case MeshManager.PASS_MESH_HIGHLIGHT:
-            program.SetFloat4(gl, "color", Config.Colors.MeshSelected);
+            if (this.mMode == MeshManager.MODE_VERTEX)
+            {
+                program.SetFloat4(gl, "color", Config.Colors.VertexUnselectedCol);
+            }
+            else
+            {
+                program.SetFloat4(gl, "color", Config.Colors.MeshSelected);
+            }
             program.SetFloat (gl, "privateColorBlend", 0.0);
             gl.lineWidth(1.0);
             break;
         case MeshManager.PASS_MESH_HIGHLIGHT_VERTICES:
             program.SetFloat4(gl, "color", Config.Colors.MeshUnselected);
             program.SetFloat (gl, "privateColorBlend", 1.0);
+            program.SetFloat (gl, "uPointSize", 6.0);
             depthBias = 0.01;
             gl.lineWidth(1.0); break;
         case MeshManager.PASS_SELECTION:
@@ -144,12 +218,14 @@ MeshManager.prototype = {
             break;
         case MeshManager.PASS_SELECTION_VERTEX:
             program.SetFloat(gl, "isVertexSelection", 1.0);
+            depthBias = 0.01;
+            program.SetFloat (gl, "uPointSize", 10.0);
             break;
         case MeshManager.PASS_LAMBERT:
         default:
             break;
         }
-        program.SetFloat(gl, "depthBias", depthBias);
+        program.SetFloat(gl, "uDepthBias", depthBias);
     },
 
     SetUniformsPerMesh : function (gl, program,  programId, mesh)
@@ -197,12 +273,14 @@ MeshManager.prototype = {
             break;
         case MeshManager.PASS_SELECTION:
         case MeshManager.PASS_SELECTION_VERTEX:
+            gl.cullFace(gl.BACK);
+            gl.depthFunc(gl.LEQUAL);
+            break;
         default:
             gl.cullFace(gl.BACK);
             gl.depthFunc(gl.LESS);
             break;
         }
-        return Mesh.DRAW_SOLID;
     },
 
     Render : function(gl, camera, pass)
@@ -282,7 +360,7 @@ function MeshPrograms()
     [
         {name: "Default-Lambert", stages: ["stdvertex.vs", "lambert.ps"]},
         {name: "Selection",       stages: ["stdvertex.vs", "selection.ps"]},    
-        {name: "SelectionHighlight",       stages: ["stdvertex.vs", "colorsolid.ps"]}    
+        {name: "SelectionHighlight",       stages: ["stdvertex.vs", "colorsolid.ps"]}
     ];
 
     this.mPrograms = [];
@@ -298,6 +376,7 @@ function MeshPrograms()
 MeshPrograms.DEFAULT_LAMBERT = 0;
 MeshPrograms.SELECTION = 1;
 MeshPrograms.SELECTION_HIGHLIGHTS = 2;
+MeshPrograms.DEPTH = 3;
 
 MeshPrograms.prototype = {
     UpdateState : function (gl)

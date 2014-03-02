@@ -194,7 +194,7 @@ Mesh.prototype = {
         this.HandleDirtyStreamFlag(gl, this.mStreams.userStream, this.mVertexes);
         var vertexId_internal = [];
 
-        for (var i = 0; i < this.mVertexes.length / this.mStreams.userStream.format.GetElementCount(); ++i) vertexId_internal[i] = i;
+        for (var i = 0; i < this.mVertexes.length / this.mStreams.userStream.format.GetElementCount(); ++i) vertexId_internal[i] = i + 1;
         var vertexIds = new Uint16Array(vertexId_internal);
         this.HandleDirtyStreamFlag(gl, this.mStreams.vertexIdStream, vertexIds);
         var vertex_internalColors = [];
