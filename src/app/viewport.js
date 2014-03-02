@@ -251,7 +251,7 @@ Viewport.prototype = {
                 this.mCanvas.height-this.mRenderSelectionPassRequest.mouseHoverCoords.y,
                 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, this.mSelectionPixels
             );
-            this.mMeshManager.SetVertexHover(this.mSelectionPixels);
+            this.mMeshManager.SetVertexHover(gl, this.mSelectionPixels);
             this.mRenderSelectionPassRequest.mouseHoverUpdate = false;
             this.mSurfaces.selection.Unuse(gl);
         }

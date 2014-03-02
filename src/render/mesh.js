@@ -96,6 +96,19 @@ Mesh.prototype = {
 
     StateReady : function () {return this.mState == Mesh.STATE_READY;},
 
+    SetDynamicVertexColor : function (gl, vertexId, color)
+    {
+        var stream = this.mStreams.internalStream;
+        var glHandle = stream.glBufferHandle;
+        var format = stream.format;
+        gl.bindBuffer(gl.ARRAY_BUFFER, glHandle);
+        gl.bufferSubData(
+            gl.ARRAY_BUFFER,
+            vertexId * format.GetByteStride(),
+            color
+        );
+    },
+
     UpdateState : function(gl)
     {
         if (this.mState == Mesh.STATE_INIT)
@@ -187,10 +200,10 @@ Mesh.prototype = {
         var vertex_internalColors = [];
         for (var i = 0; i < this.mVertexes.length / this.mStreams.userStream.format.GetElementCount(); ++i)
              vertex_internalColors.push(
-                    Config.Colors.VertexUnselected[0],
-                    Config.Colors.VertexUnselected[1],
-                    Config.Colors.VertexUnselected[2],
-                    Config.Colors.VertexUnselected[3]);
+                    Config.Colors.VertexUnselectedCol[0],
+                    Config.Colors.VertexUnselectedCol[1],
+                    Config.Colors.VertexUnselectedCol[2],
+                    Config.Colors.VertexUnselectedCol[3]);
 
         var vertexColorBuff = new Float32Array(vertex_internalColors);
         this.HandleDirtyStreamFlag(gl, this.mStreams.internalStream, vertexColorBuff);

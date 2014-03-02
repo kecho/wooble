@@ -51,7 +51,7 @@ MeshManager.prototype = {
         return p[0] + 256 * p[1] + 65536 * p[2] + 16777216 * p[3];
     },
 
-    SetVertexHover : function (p)
+    SetVertexHover : function (gl, p)
     {
         var id = this.GetIdFromPixel(p);
         if (
@@ -60,6 +60,12 @@ MeshManager.prototype = {
          )
         {
             this.mSelectionState.vertexHoverIndex = id;
+            if (id != 0)
+                this.mMeshSet[this.mSelectionState.meshId].SetDynamicVertexColor                (
+                    gl, 
+                    id, 
+                    Config.Colors.VertexSelectedCol 
+                );
         } 
     },
 
@@ -129,7 +135,7 @@ MeshManager.prototype = {
             gl.lineWidth(1.0);
             break;
         case MeshManager.PASS_MESH_HIGHLIGHT_VERTICES:
-            program.SetFloat4(gl, "color", Config.Colors.VertexUnselected);
+            program.SetFloat4(gl, "color", Config.Colors.MeshUnselected);
             program.SetFloat (gl, "privateColorBlend", 1.0);
             depthBias = 0.01;
             gl.lineWidth(1.0); break;

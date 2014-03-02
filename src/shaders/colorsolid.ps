@@ -6,6 +6,7 @@ uniform vec4 color;
 uniform float privateColorBlend;
 
 void main() {
+    //gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);//mix(color, vPrivateColor, privateColorBlend);
     gl_FragColor = mix(color, vPrivateColor, privateColorBlend);
 }
 
