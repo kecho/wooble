@@ -27,8 +27,8 @@ void main() {
     }
     int r = imod(k, 256);
     int g = imod((k / 256), 256);
-    int b = imod((k / 65536), 256);
-    int a = imod((k / 16777216), 256);
+    int b = imod((k / (256*256)), 256); // firefox does not like this!
+    int a = imod((k / (256*256*256) ), 256);
     gl_FragColor = vec4(
         float(r) / 255.0,
         float(g) / 255.0,

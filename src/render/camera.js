@@ -1,4 +1,4 @@
-function Camera (aspect)
+function Camera (aspect, viewDims)
 {
     //default projection
     var ratio = 0.3;
@@ -6,6 +6,8 @@ function Camera (aspect)
     this.mViewMatrix = M4x4.clone(M4x4.identity);
     this.mITXViewMatrix = M4x4.clone(M4x4.identity);
     this.mViewProj = M4x4.clone(M4x4.identity);
+
+    this.mViewDims = viewDims;
 
     this.mScreenRotationIn = new V3.$(0,0,0);
     this.mScreenRotationOut = new V3.$(0,0,0);
@@ -33,18 +35,23 @@ Camera.prototype = {
         return this.mView;
     },
 
-    SetScreenViewRotation : function (rotVector)
+    GetViewDims : function ()
     {
-        if (Math.abs(rotVector.x) > 0.001)
+        return this.mViewDims;
+    },
+
+    SetScreenViewRotation : function (diffx, diffy)
+    {
+        if (Math.abs(diffx) > 0.001)
         {
-            M4x4.rotate(4 * rotVector.x, [0, 1, 0], this.mViewMatrix, this.mViewMatrix);
+            M4x4.rotate(4 * diffx, [0, 1, 0], this.mViewMatrix, this.mViewMatrix);
             M4x4.inverseOrthonormal(this.mViewMatrix, this.mITXViewMatrix);
         }
     
-        if (Math.abs(rotVector.y) > 0.0001)
+        if (Math.abs(diffy) > 0.0001)
         {
             var axis = V3.mulNoRot(this.mITXViewMatrix, [1,0,0]);
-            M4x4.rotate(4 * rotVector.y, axis, this.mViewMatrix, this.mViewMatrix);
+            M4x4.rotate(4 * diffy, axis, this.mViewMatrix, this.mViewMatrix);
         }
     },
     

@@ -24,8 +24,6 @@ ViewportMouseCmd.prototype = {
     
     ClearArgs : function ()
     {
-        this.mArgs.x = 0;
-        this.mArgs.y = 0;
         this.mIsSelect = false;
         this.mCommandState = ViewportMouseCmd.NONE;
         this.mCameraUpdateFinish = false;
@@ -39,21 +37,20 @@ ViewportMouseCmd.prototype = {
 
     OnMouseMove : function (e)
     {
-        if (this.mIsDown)
-        {
-            var diffX = (e.x - this.mClickCoords.x) / this.mDims.width;
-            var diffY = (e.y - this.mClickCoords.y) / this.mDims.height;
-
-            //update the new click coords
-            this.mClickCoords.x = e.x;
-            this.mClickCoords.y = e.y;
-
-            this.mCommandState = ViewportMouseCmd.MOVE_CAMERA;
-            this.mArgs.x = diffX;
-            this.mArgs.y = diffY;
-        }
         this.mMouseUpdating = true;
         this.mArgs.mouseHoverUpdateCoords = { x: e.layerX, y: e.layerY};
+
+        if (this.mIsDown)
+        {
+            var diffX = (e.pageX - this.mClickCoords.x) / this.mDims.width;
+            var diffY = (e.pageY - this.mClickCoords.y) / this.mDims.height;
+            this.mArgs.diffX = diffX;
+            this.mArgs.diffY = diffY;
+            //update the new click coords
+            this.mCommandState = ViewportMouseCmd.MOVE_CAMERA;
+        }
+        this.mClickCoords.x = e.pageX;
+        this.mClickCoords.y = e.pageY;
     },
 
     OnMouseDown : function (e)
@@ -61,10 +58,10 @@ ViewportMouseCmd.prototype = {
         if (e.button == 0)
         {
             this.mIsDown = true;
-            this.mCommandState = ViewportMouseCmd.NONE;
+            this.mCommandState = ViewportMouseCmd.CLICK_SIGNAL;
             this.mIsSelect = false;
-            this.mClickCoords.x = e.x;
-            this.mClickCoords.y = e.y;
+            this.mClickCoords.x = e.pageX;
+            this.mClickCoords.y = e.pageY;
         }
         else if (e.button == 2)
         {
@@ -81,6 +78,10 @@ ViewportMouseCmd.prototype = {
         if (String.fromCharCode(e.which) == "E")
         {
             this.mCommandState = ViewportMouseCmd.EDIT_VERTEX_SIGNAL;
+        }
+        else if (String.fromCharCode(e.which) == "G")
+        {
+            this.mCommandState = ViewportMouseCmd.MOVE_SIGNAL;
         }
     },
 
@@ -116,7 +117,8 @@ ViewportMouseCmd.NONE = 0;
 ViewportMouseCmd.MOVE_CAMERA = 1;
 ViewportMouseCmd.SELECT_SIGNAL = 3;
 ViewportMouseCmd.EDIT_VERTEX_SIGNAL = 4;
-ViewportMouseCmd.MOVE_GEOMETRY = 5;
+ViewportMouseCmd.MOVE_SIGNAL = 5;
+ViewportMouseCmd.CLICK_SIGNA = 6;
 
 function Viewport(viewportDiv)
 {
@@ -132,7 +134,7 @@ function Viewport(viewportDiv)
         )
     };
     this.mViewportDiv.appendChild(this.mCanvas);
-    this.mCamera = new Camera( this.mDims.height / this.mDims.width);
+    this.mCamera = new Camera( this.mDims.height / this.mDims.width, this.mDims);
     this.mMeshManager = new MeshManager();
     this.mRenderSelectionPassRequest = { 
         renderMeshSelection : false,
@@ -141,6 +143,7 @@ function Viewport(viewportDiv)
         mouseHoverCoords : {x:0, y:0},
         selectionCoord : {x:0, y:0},
     };
+    this.mEditManager = new EditManager(this.mMeshManager, this.mViewportMouseCmd);
     this.mScreenPass = new ScreenPass("screen.ps");
     this.mEnabledDebugPasses = 0;//none
     this.mRenderDebugPasses = 0;//none
@@ -238,6 +241,7 @@ Viewport.prototype = {
         this.mCamera.UpdateState(this.mGl);
         this.mMeshManager.UpdateState(this.mGl);
         this.mScreenPass.UpdateState(this.mGl);
+        this.mEditManager.UpdateState(this.mGl, this.mCamera);
     },
 
     RenderSelectionBuffer : function(gl)
@@ -326,7 +330,7 @@ Viewport.prototype = {
         }
         if (this.mViewportMouseCmd.GetState() == ViewportMouseCmd.MOVE_CAMERA)
         {
-            this.mCamera.SetScreenViewRotation(this.mViewportMouseCmd.mArgs);
+            this.mCamera.SetScreenViewRotation( this.mViewportMouseCmd.mArgs.diffX, this.mViewportMouseCmd.mArgs.diffY);
             this.mViewportMouseCmd.ClearArgs();
         }
 
@@ -335,6 +339,17 @@ Viewport.prototype = {
             this.mRenderSelectionPassRequest.renderMeshSelection = true;
             this.mRenderSelectionPassRequest.selectionCoord.x = this.mViewportMouseCmd.mArgs.x;
             this.mRenderSelectionPassRequest.selectionCoord.y = this.mViewportMouseCmd.mArgs.y;
+            this.mViewportMouseCmd.ClearArgs();
+
+            this.mEditManager.FinishCommand();
+        }
+
+        if (this.mViewportMouseCmd.GetState() == ViewportMouseCmd.MOVE_SIGNAL)
+        {
+            if (this.mMeshManager.GetMode() == MeshManager.MODE_VERTEX && this.mMeshManager.HasSelectedVertex())
+            {
+                this.mEditManager.OpenEditVertex();
+            }
             this.mViewportMouseCmd.ClearArgs();
         }
 

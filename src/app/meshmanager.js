@@ -175,6 +175,11 @@ MeshManager.prototype = {
         return this.mSelectionState.meshId != 0;
     },
 
+    HasSelectedVertex : function ()
+    {
+        return this.mSelectionState.vertexes.length != 0;
+    },
+
     OpenEditMode : function ()
     {
         this.mMode = MeshManager.MODE_VERTEX;
