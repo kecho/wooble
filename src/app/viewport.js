@@ -246,7 +246,11 @@ Viewport.prototype = {
 
     RenderSelectionBuffer : function(gl)
     {
-        if (this.mRenderSelectionPassRequest.mouseHoverUpdate)
+        if (this.mEditManager.RequestLockSelections())
+        {
+            this.mMeshManager.ClearHovers(gl); 
+        }
+        if (!this.mEditManager.RequestLockSelections() && this.mRenderSelectionPassRequest.mouseHoverUpdate)
         {
             this.mSurfaces.selection.Use(gl);
             gl.readPixels(
@@ -283,7 +287,7 @@ Viewport.prototype = {
                 );
                 this.mMeshManager.SetSelectionFromPixel(this.mSelectionPixels);
             }
-            else
+            else if (!this.mEditManager.RequestLockSelections())
             {
                 this.mMeshManager.RequestSelectVertex(gl);
             }

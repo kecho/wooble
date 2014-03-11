@@ -50,6 +50,25 @@ MeshManager.prototype = {
         return p[0] + 256 * p[1] + 65536 * p[2] + 16777216 * p[3];
     },
 
+    ClearHovers : function (gl)
+    {
+        if (
+            this.mSelectionState.meshId != 0 &&
+            0 != this.mSelectionState.vertexHoverIndex
+         )
+        {
+            if (!this.IsVertexSelected(this.mSelectionState.vertexHoverIndex)) 
+            {
+                this.mMeshSet[this.mSelectionState.meshId].SetDynamicVertexColor                (
+                    gl, 
+                    this.mSelectionState.vertexHoverIndex - 1, 
+                    Config.Colors.VertexUnselectedCol 
+                );
+            }
+            this.mSelectionState.vertexHoverIndex = 0;
+        }
+    },
+
     SetVertexHover : function (gl, p)
     {
         var id = this.GetIdFromPixel(p);
@@ -84,6 +103,31 @@ MeshManager.prototype = {
     {
         this.mSelectionState.vertexes[id] = true;
     },    
+
+    ComputeAverageSelectedVertexCentroid : function (outVertex)
+    {
+        outVertex[0] = 0;
+        outVertex[1] = 0;
+        outVertex[2] = 0;
+        var count = 0;
+        var selectedMesh = this.mMeshSet[this.mSelectionState.meshId];
+        for (var i in this.mSelectionState.vertexes)
+        {
+            var v = this.mSelectionState.vertexes[i]; 
+            if (v) // test wheter vertex exists
+            {
+                count++;
+                selectedMesh.GetAddVertexDataUserStream(i - 1, AttribType.POS, outVertex);
+            }
+        }
+        
+        outVertex[0] /= count;
+        outVertex[1] /= count;
+        outVertex[2] /= count;
+
+        //TODO: do world space transformation here
+        //      for now only deal with local to world
+    },
 
     UnselectVertex : function(id)
     {
