@@ -9,6 +9,8 @@ function VertexFormat (typeList)
     this.mTypes = typeList;
     this.mStrideSize = 0;
     this.mStrideElementCount = 0;
+    this.mOffsetMap = {};
+    this.mByteOffsetMap = {};
     this.UpdateFormatMetaData();
 }
 
@@ -25,6 +27,9 @@ VertexFormat.prototype = {
 
     GetByteStride : function () { return this.mStrideSize; },
 
+    GetAttributeOffset : function (attr) { return this.mOffsetMap[attr.id]; },
+    GetAttributeByteOffset : function (attr) { return this.mByteOffsetMap[attr.id]; },
+
     UpdateFormatMetaData : function()
     {
         this.mStrideSize = 0;
@@ -32,6 +37,8 @@ VertexFormat.prototype = {
         for (var i in this.mTypes)
         {
             var attribEl = this.mTypes[i];
+            this.mOffsetMap[attribEl.id] = this.mStrideElSize;
+            this.mByteOffsetMap[attribEl.id] = this.mStrideSize;
             this.mStrideSize += attribEl.size * attribEl.bytes;
             this.mStrideElSize += attribEl.size;
         }
@@ -43,7 +50,6 @@ function Mesh()
 {
     this.mIndices = null;
     this.mVertexes = null;
-    this.mVertexBuffer = null;
     this.mIndexBuffer = null;
     this.mWireframeIndexBuffer = null;
     this.mState = Mesh.STATE_INIT;
@@ -86,6 +92,8 @@ Mesh.RegisterVertexLayout = function (gl, program)
     }
 }
 
+Mesh.tmp_vec = V3.$(0,0,0);
+
 Mesh.prototype = {
     
     SetFormat : function (varList) 
@@ -109,13 +117,42 @@ Mesh.prototype = {
         );
     },
 
+    UpdateSubAttribute : function (gl, stream, vertexValues, stride, attributeByteOffset, index)
+    {
+        var glHandle = stream.glBufferHandle;
+        gl.bindBuffer(gl.ARRAY_BUFFER, glHandle);
+        gl.bufferSubData(
+            gl.ARRAY_BUFFER,
+            index * stride + attributeByteOffset,
+            vertexValues
+        );
+    },
+    GetAddVertexDataUserStream : function (vertexIndex,  attribute, outputMem)
+    {
+        var stream = this.mStreams.userStream;
+        var format = stream.format;
+        var offset = format.GetAttributeOffset(attribute);
+        for (var i = 0; i < attribute.size ; ++i)
+        {
+            outputMem[i] += this.mVertexes[vertexIndex * format.GetElementCount() + offset + i];
+        }
+    },
+
+    AddTemporaryAttribute : function (gl, vertexId, attribute, mem)
+    {
+        var stream = this.mStreams.userStream;
+        var format = stream.format;
+        var offset = format.GetAttributeOffset(attribute);
+        //add
+        for (var i = 0; i < attribute.size ; ++i)
+        {
+            Mesh.tmp_vec[i] = this.mVertexes[vertexId * format.GetElementCount() + offset + i] + mem[i];
+        }
+        this.UpdateSubAttribute(gl, stream, Mesh.tmp_vec, format.GetByteStride(), format.GetAttributeByteOffset(attribute), vertexId);
+    },
+
     UpdateState : function(gl)
     {
-        if (this.mState == Mesh.STATE_INIT)
-        {
-            this.mVertexBuffer = gl.createBuffer();
-            this.mState = Mesh.STATE_READY;
-        }
     },
 
     LoadMesh : function ()
@@ -207,8 +244,6 @@ Mesh.prototype = {
 
         var vertexColorBuff = new Float32Array(vertex_internalColors);
         this.HandleDirtyStreamFlag(gl, this.mStreams.internalStream, vertexColorBuff);
-
-        this.HandleDirtyStreamFlag(gl, this.mStreams.userStream, this.mVertexBuffer);
     },
 
     UpdateState : function (gl)

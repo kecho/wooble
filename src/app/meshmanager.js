@@ -104,6 +104,19 @@ MeshManager.prototype = {
         this.mSelectionState.vertexes[id] = true;
     },    
 
+    VisualizeTranslation : function (gl, displacement)
+    {
+        var selectedMesh = this.mMeshSet[this.mSelectionState.meshId];
+        for (var i in this.mSelectionState.vertexes)
+        {
+            var v = this.mSelectionState.vertexes[i]; 
+            if (v) // test wheter vertex exists
+            {
+                selectedMesh.AddTemporaryAttribute(gl, i - 1, AttribType.POS, displacement);
+            }
+        }
+    },
+
     ComputeAverageSelectedVertexCentroid : function (outVertex)
     {
         outVertex[0] = 0;

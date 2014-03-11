@@ -459,7 +459,7 @@ V3.mul4x4 = function V3_mul4x4(m, v, r) {
     return r;
 };
 
-V3.mulNoRot = function V3_mulNoRot(m, v, r) {
+V3.mulNoTrans = function V3_mulNoTrans(m, v, r) {
     //MathUtils_assert(m.length == 16, "m.length == 16");
     //MathUtils_assert(v.length == 3, "v.length == 3");
     //MathUtils_assert(r == undefined || r.length == 3, "r == undefined || r.length == 3");

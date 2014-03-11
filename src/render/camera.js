@@ -6,6 +6,7 @@ function Camera (aspect, viewDims)
     this.mViewMatrix = M4x4.clone(M4x4.identity);
     this.mITXViewMatrix = M4x4.clone(M4x4.identity);
     this.mViewProj = M4x4.clone(M4x4.identity);
+    this.mInverseViewProj = M4x4.clone(M4x4.identity);
 
     this.mViewDims = viewDims;
 
@@ -32,7 +33,17 @@ Camera.prototype = {
 
     GetView : function()
     {
-        return this.mView;
+        return this.mViewMatrix;
+    },
+
+    GetViewITX : function ()
+    {
+        return this.mITXViewMatrix;
+    },
+
+    GetViewProj : function ()
+    {
+        return this.mViewProj;
     },
 
     GetViewDims : function ()
@@ -50,7 +61,7 @@ Camera.prototype = {
     
         if (Math.abs(diffy) > 0.0001)
         {
-            var axis = V3.mulNoRot(this.mITXViewMatrix, [1,0,0]);
+            var axis = V3.mulNoTrans(this.mITXViewMatrix, [1,0,0]);
             M4x4.rotate(4 * diffy, axis, this.mViewMatrix, this.mViewMatrix);
         }
     },
@@ -58,6 +69,7 @@ Camera.prototype = {
     UpdateState : function ()
     {
         M4x4.inverseOrthonormal(this.mViewMatrix, this.mITXViewMatrix);
+        
         M4x4.mul(this.mProjection, this.mViewMatrix, this.mViewProj); 
 
     },
